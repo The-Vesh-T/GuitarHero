@@ -1,7 +1,11 @@
+import pygame
+
+# Screen
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 FPS = 60
 
+# Colors
 WHITE  = (255, 255, 255)
 BLACK  = (0, 0, 0)
 RED    = (255, 0, 0)
@@ -10,28 +14,20 @@ BLUE   = (0, 0, 255)
 YELLOW = (255, 255, 0)
 PURPLE = (128, 0, 128)
 
-NOTE_WIDTH = 60
-NOTE_HEIGHT = 20
-NOTE_SPEED = 300
-
+# Note settings
+NOTE_RADIUS = 20
+NOTE_SPEED = 300  # pixels/sec
+HIT_RADIUS = 30
 HIT_Y = SCREEN_HEIGHT - 100
 HIT_WINDOW = 30
 
-# Keys for lanes 0..4
-KEY_MAPPING = {
-    0: "d",  # lane 0 (Red)
-    1: "f",  # lane 1 (Green)
-    2: "j",  # lane 2 (Blue)
-    3: "k",  # lane 3 (Yellow)
-    4: "l"   # lane 4 (Purple)
-}
-
+# Lanes
 LANE_X = {
-    0: 100,
-    1: 200,
-    2: 300,
-    3: 400,
-    4: 500
+    0: 150,
+    1: 250,
+    2: 350,
+    3: 450,
+    4: 550
 }
 
 LANE_COLORS = {
@@ -42,6 +38,16 @@ LANE_COLORS = {
     4: PURPLE
 }
 
+# Key mapping for lanes
+KEY_MAPPING = {
+    0: "d",
+    1: "f",
+    2: "j",
+    3: "k",
+    4: "l"
+}
+
+# Hit scores
 HIT_SCORES = {
     "Perfect": 100,
     "Good": 50,
