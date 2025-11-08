@@ -22,13 +22,12 @@ HIT_Y = SCREEN_HEIGHT - 100
 HIT_WINDOW = 30
 
 # Lanes
-LANE_X = {
-    0: 150,
-    1: 250,
-    2: 350,
-    3: 450,
-    4: 550
-}
+num_lanes = 5
+spacing = 60  # distance between each lane
+start_x = SCREEN_WIDTH//2 - (spacing * (num_lanes-1))//2
+
+LANE_X = {i: start_x + i*spacing for i in range(num_lanes)}
+
 
 LANE_COLORS = {
     0: RED,

@@ -11,9 +11,9 @@ pygame.display.set_caption("Guitar Hero")
 clock = pygame.time.Clock()
 
 # --- Fonts ---
-font = pygame.font.SysFont("Impact", 30)
-big_font = pygame.font.SysFont("Impact", 40)
-title_font = pygame.font.SysFont("Impact", 50)
+font = pygame.font.SysFont("Consolas", 28)
+big_font = pygame.font.SysFont("Consolas", 50, bold=True)
+title_font = pygame.font.SysFont("Arial Black", 60, bold=True)
 
 # --- Game object ---
 game = Game()
@@ -37,35 +37,30 @@ STATE_GAME_OVER = "end_screen"
 game_state = STATE_START
 hit_feedback = ""
 feedback_timer = 0
-feedback_x = 0  # where the feedback should appear
+feedback_y_offset = 0
 
 # --- Draw start screen ---
 def draw_start_screen():
-    screen.fill(BLACK)
+    screen.fill((20, 20, 20))
     title = title_font.render("Guitar Hero", True, WHITE)
     song = big_font.render("Eye of the Tiger", True, WHITE)
     info = font.render("Press ENTER to Start", True, WHITE)
     screen.blit(title, (SCREEN_WIDTH//2 - title.get_width()//2, SCREEN_HEIGHT//2 - 100))
-    screen.blit(song, (SCREEN_WIDTH//2 - song.get_width()//2, SCREEN_HEIGHT//2 - 40))
-    screen.blit(info, (SCREEN_WIDTH//2 - info.get_width()//2, SCREEN_HEIGHT//2 + 40))
+    screen.blit(song, (SCREEN_WIDTH//2 - song.get_width()//2, SCREEN_HEIGHT//2 - 20))
+    screen.blit(info, (SCREEN_WIDTH//2 - info.get_width()//2, SCREEN_HEIGHT//2 + 60))
+    pygame.display.flip()
 
-# --- Draw hollow hit zones (only during gameplay) ---
+# --- Draw hollow hit zones with glow ---
 def draw_hit_zone():
-    lane_positions = [SCREEN_WIDTH//2 - 120 + i*60 for i in range(5)]  # 5 lanes closer together & centered
-    for lane_index, x in enumerate(lane_positions):
-        pygame.draw.circle(
-            screen,
-            LANE_COLORS[lane_index],
-            (x, HIT_Y),
-            NOTE_RADIUS,
-            4  # thickness makes it hollow
-        )
-        # Update lane X for notes
-        LANE_X[lane_index] = x
+    for lane_index, x in LANE_X.items():
+        # Glow circle
+        pygame.draw.circle(screen, (*LANE_COLORS[lane_index], 80), (x, HIT_Y), NOTE_RADIUS+12, 6)
+        # Hollow circle
+        pygame.draw.circle(screen, LANE_COLORS[lane_index], (x, HIT_Y), NOTE_RADIUS, 4)
 
 # --- Draw end screen ---
 def draw_end_screen():
-    screen.fill(BLACK)
+    screen.fill((20, 20, 20))
     title = title_font.render("Song Complete!", True, WHITE)
     score_text = big_font.render(f"Score: {game.score}", True, WHITE)
     combo_text = font.render(f"Max Combo: {game.max_combo}", True, WHITE)
@@ -73,20 +68,28 @@ def draw_end_screen():
     misses_text = font.render(f"Total Misses: {game.total_misses}", True, WHITE)
     restart_text = font.render("Press ENTER to Restart", True, WHITE)
 
-    # Center all texts
-    screen.blit(title, (SCREEN_WIDTH//2 - title.get_width()//2, 80))
-    screen.blit(score_text, (SCREEN_WIDTH//2 - score_text.get_width()//2, 200))
-    screen.blit(combo_text, (SCREEN_WIDTH//2 - combo_text.get_width()//2, 280))
+    screen.blit(title, (SCREEN_WIDTH//2 - title.get_width()//2, 60))
+    screen.blit(score_text, (SCREEN_WIDTH//2 - score_text.get_width()//2, 180))
+    screen.blit(combo_text, (SCREEN_WIDTH//2 - combo_text.get_width()//2, 260))
     screen.blit(hits_text, (SCREEN_WIDTH//2 - hits_text.get_width()//2, 320))
     screen.blit(misses_text, (SCREEN_WIDTH//2 - misses_text.get_width()//2, 360))
-    screen.blit(restart_text, (SCREEN_WIDTH//2 - restart_text.get_width()//2, 480))
+    screen.blit(restart_text, (SCREEN_WIDTH//2 - restart_text.get_width()//2, 440))
+    pygame.display.flip()
+
+# --- Animate feedback ---
+def draw_feedback():
+    global feedback_y_offset
+    if feedback_timer > 0:
+        feedback_surface = big_font.render(hit_feedback, True, WHITE)
+        y_pos = HIT_Y - 60 - feedback_y_offset
+        screen.blit(feedback_surface, (SCREEN_WIDTH//2 - feedback_surface.get_width()//2, y_pos))
+        feedback_y_offset += 60 * (1/FPS)  # float upward
 
 # --- Main loop ---
 running = True
 while running:
-    delta_time = clock.tick(FPS) / 1000
+    delta_time = clock.tick(FPS) / 1.0
 
-    # --- Events ---
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
@@ -104,56 +107,39 @@ while running:
                     if result:
                         hit_feedback = result
                         feedback_timer = 0.5
-                        # Show feedback above the corresponding lane
-                        for note in game.active_notes:
-                            if note.hit and KEY_MAPPING[note.lane_index] == event.unicode:
-                                feedback_x = LANE_X[note.lane_index]
+                        feedback_y_offset = 0
 
             elif game_state == STATE_GAME_OVER and event.key == pygame.K_RETURN:
-                # Reset game for restart
-                game.notes.clear()
-                game.active_notes.clear()
-                game.particles.clear()
-                game.score = 0
-                game.combo = 0
-                game.max_combo = 0
-                game.total_hits = 0
-                game.total_misses = 0
-                game.load_notes(note_chart)
-                game.start()
+                game.restart()
+                game_state = STATE_START
                 hit_feedback = ""
                 feedback_timer = 0
-                game_state = STATE_PLAYING
+                feedback_y_offset = 0
 
-    # --- Update game ---
-    if game_state == STATE_PLAYING:
-        game.update()
-        if all(note.hit for note in game.notes):
-            game_state = STATE_GAME_OVER
-
-    # --- Draw ---
-    screen.fill(BLACK)
-
+    # --- State screens ---
     if game_state == STATE_START:
         draw_start_screen()
-    elif game_state == STATE_PLAYING:
-        draw_hit_zone()
-        game.draw(screen)
+        continue
     elif game_state == STATE_GAME_OVER:
-        draw_end_screen()  # no hit zones here
+        draw_end_screen()
+        continue
+
+    # --- Update game ---
+    game.update()
+    if all(note.hit for note in game.notes):
+        game_state = STATE_GAME_OVER
+
+    # --- Draw game ---
+    screen.fill((20, 20, 20))
+    draw_hit_zone()
+    game.draw(screen)
+    draw_feedback()
 
     # --- Scoreboard ---
-    if game_state == STATE_PLAYING:
-        score_text = font.render(f"Score: {game.score}", True, WHITE)
-        combo_text = font.render(f"Combo: {game.combo}", True, WHITE)
-        screen.blit(score_text, (10, 10))
-        screen.blit(combo_text, (10, 50))
-
-    # --- Feedback ---
-    if feedback_timer > 0:
-        feedback_surface = big_font.render(hit_feedback, True, WHITE)
-        screen.blit(feedback_surface, (feedback_x - feedback_surface.get_width()//2, HIT_Y - 80))
-        feedback_timer -= delta_time
+    score_text = font.render(f"Score: {game.score}", True, WHITE)
+    combo_text = font.render(f"Combo: {game.combo}", True, WHITE)
+    screen.blit(score_text, (10, 10))
+    screen.blit(combo_text, (10, 50))
 
     pygame.display.flip()
 
