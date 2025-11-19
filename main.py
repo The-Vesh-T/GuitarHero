@@ -3,12 +3,31 @@ import sys
 import time
 from constants import *
 from game import Game
+import serial
+import threading
+
 beat_recording = False
 beat_times = []
 
 song_start_time = None
 SONG_LENGTH = 4 * 60 + 2   # 4:02
 
+
+arduino_input = None
+
+def read_arduino():
+    global arduino_input
+    ser = serial.Serial("/dev/tty.usbmodem*", 9600)  # macOS auto-detect
+    while True:
+        try:
+            line = ser.readline().decode().strip()
+            if line:
+                arduino_input = line  # set last key
+        except:
+            pass
+
+# Start the thread
+threading.Thread(target=read_arduino, daemon=True).start()
 
 # --- Pygame setup ---
 pygame.init()
@@ -30,7 +49,7 @@ title_font = pygame.font.SysFont("Arial Black", 60, bold=True)
 # --- Game object ---
 game = Game()
 
-# --- Notes chart example ---
+# --- Notes chart ---
 note_chart = [
     # --- INTRO HEARTBEAT (8 beats) ---
     {"time": 1.515, "key": "R"},
@@ -421,6 +440,16 @@ while running:
                 if event.key == pygame.K_b:
                     beat_recording = not beat_recording
                     print("\nBeat Recording:", "ON" if beat_recording else "OFF", "\n")
+                
+                # --- ARDUINO INPUT ---
+                if arduino_input:
+                    result = game.handle_input(arduino_input)
+                    arduino_input = None  # clear so it doesn’t double-trigger
+                    if result:
+                        hit_feedback = result
+                        feedback_timer = 0.5
+                        feedback_y_offset = 0
+
 
                 # --- Record taps (AUTO-ADJUSTED!) ---
                 elif event.key == pygame.K_SPACE and beat_recording:
