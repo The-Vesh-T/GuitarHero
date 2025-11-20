@@ -5,6 +5,15 @@ from constants import *
 from game import Game
 import serial
 import threading
+import glob
+
+fret_down = {
+    "d": False,
+    "f": False,
+    "j": False,
+    "k": False,
+    "l": False
+}
 
 beat_recording = False
 beat_times = []
@@ -17,17 +26,28 @@ arduino_input = None
 current_fret = None
 strum_triggered = False
 
+arduino_input = None
 
 def read_arduino():
     global arduino_input
-    ser = serial.Serial("/dev/tty.usbmodem*", 9600)  # macOS auto-detect RMR PUT OWN
+
+    # Auto-detect USB modem port
+    port_list = glob.glob("/dev/tty.usbmodem*")
+    if not port_list:
+        print("ERROR: No Arduino found!")
+        return
+
+    ser = serial.Serial(port_list[0], 9600)
+    print("Connected to Arduino on", port_list[0])
+
     while True:
         try:
             line = ser.readline().decode().strip()
             if line:
-                arduino_input = line  # set last key
+                arduino_input = line
         except:
             pass
+
 
 # Start the thread
 threading.Thread(target=read_arduino, daemon=True).start()
@@ -420,159 +440,108 @@ while running:
         if event.type == pygame.QUIT:
             running = False
 
-        elif event.type == pygame.KEYDOWN:
-            # Start screen
-            if game_state == STATE_START and event.key == pygame.K_RETURN:
+        # -------- START SCREEN --------
+        elif event.type == pygame.KEYDOWN and game_state == STATE_START:
+            if event.key == pygame.K_RETURN:
                 game.start()
                 game_state = STATE_PLAYING
-
                 pygame.mixer.music.play()
-                song_start_time = time.time()  # start timer
-
+                song_start_time = time.time()
                 beat_recording = True
                 beat_times = []
                 print("\nBeat Recording Started!\nPress SPACE on every note.\n")
 
-            elif game_state == STATE_PLAYING:
+        # -------- KEYBOARD INPUT --------
+        elif event.type == pygame.KEYDOWN and game_state == STATE_PLAYING:
 
-                FALL_TIME = 1.8
+            # FRET KEYS
+            if event.key == pygame.K_d: current_fret = "d"
+            elif event.key == pygame.K_f: current_fret = "f"
+            elif event.key == pygame.K_j: current_fret = "j"
+            elif event.key == pygame.K_k: current_fret = "k"
+            elif event.key == pygame.K_l: current_fret = "l"
 
-                # ==================================================
-                # 1. ARDUINO INPUT
-                # ==================================================
-                if arduino_input:
-                    if arduino_input in ["R","G","B","Y","P"]:
-                        current_fret = arduino_input.lower()
+            # STRUM
+            elif event.key == pygame.K_a:
+                strum_triggered = True
 
-                    elif arduino_input in ["STRUM_UP","STRUM_DOWN"]:
-                        strum_triggered = True
+            # Pause toggle
+            elif event.key == pygame.K_p:
+                game.toggle_pause()
 
-                    arduino_input = None  # clear after use
+    # ==================================================
+    # 1. ARDUINO INPUT (OUTSIDE EVENT LOOP — ALWAYS RUNS)
+    # ==================================================
+    if arduino_input:
+        print("RECEIVED:", arduino_input)
 
+        # ---------- FRET DOWN ----------
+        if arduino_input.endswith("_DOWN"):
+            fret = arduino_input[0]   # get 'd','f','j','k','l'
+            if fret in fret_down:
+                fret_down[fret] = True
 
-                # ==================================================
-                # 2. KEYBOARD INPUT
-                # ==================================================
-                if event.type == pygame.KEYDOWN:
+        # ---------- FRET UP ----------
+        elif arduino_input.endswith("_UP"):
+            fret = arduino_input[0]
+            if fret in fret_down:
+                fret_down[fret] = False
 
-                    # FRET KEYS
-                    if event.key == pygame.K_d:
-                        current_fret = "d"   # red
-                    elif event.key == pygame.K_f:
-                        current_fret = "f"   # green
-                    elif event.key == pygame.K_j:
-                        current_fret = "j"   # blue
-                    elif event.key == pygame.K_k:
-                        current_fret = "k"   # yellow
-                    elif event.key == pygame.K_l:
-                        current_fret = "l"   # purple
+        # ---------- STRUM ----------
+        elif arduino_input in ["STRUM_DOWN", "STRUM_UP"]:
+            strum_triggered = True
 
+        arduino_input = None  # clear
+    
+    # ==================================================
+    # UPDATE CURRENT_FRET BASED ON HELD FRETS
+    # ==================================================
+    current_fret = None
+    for f in ["d", "f", "j", "k", "l"]:
+        if fret_down[f]:
+            current_fret = f
+            break
 
-                    # STRUM
-                    elif event.key == pygame.K_a:
-                        strum_triggered = True
+    
 
-                    # Beat recorder toggle
-                    elif event.key == pygame.K_b:
-                        beat_recording = not beat_recording
-                    # --- SEEK FORWARD 5 SEC ---
-                    elif event.key == pygame.K_RIGHT:
-                        song_start_time -= 5
-                        pygame.mixer.music.play(start=max(0, time.time() - song_start_time))
-                        print("⏩ Skipped +5 seconds")
+    # ==================================================
+    # 2. UNIVERSAL HIT CHECK (WORKS FOR BOTH INPUT TYPES)
+    # ==================================================
+    if strum_triggered and current_fret:
+        result = game.handle_input(current_fret)
+        print("ATTEMPT HIT:", current_fret)
+        strum_triggered = False
 
-                    # --- SEEK BACKWARD 5 SEC ---
-                    elif event.key == pygame.K_LEFT:
-                        song_start_time += 5
-                        pygame.mixer.music.play(start=max(0, time.time() - song_start_time))
-                        print("⏪ Went back -5 seconds")
+        if result:
+            hit_feedback = result
+            feedback_timer = 0.5
+            feedback_y_offset = 0
 
-                    # --- BIG SKIP 20 SEC (SHIFT + RIGHT) ---
-                    elif event.key == pygame.K_RIGHT and (pygame.key.get_mods() & pygame.KMOD_SHIFT):
-                        song_start_time -= 20
-                        pygame.mixer.music.play(start=max(0, time.time() - song_start_time))
-                        print("⏩⏩ Skipped +20 seconds")
-
-
-
-                    # Beat tap
-                    # --- 3. Beat Recording ---
-                    if event.key == pygame.K_SPACE and beat_recording:
-                        raw_time = time.time() - song_start_time
-                        adjusted = max(0.0, raw_time - FALL_TIME)
-                        beat_times.append(adjusted)
-                        print(f"Recorded: {adjusted:.3f}")
-                        continue
-
-
-
-                    # Stop beat recording
-                    elif event.key == pygame.K_s and beat_recording:
-                        print("\n=== FINAL NOTE CHART ===")
-                        for t in beat_times:
-                            print(f'{{"time": {t:.3f}, "key": "R"}},')
-                        print("=========================\n")
-                        beat_recording = False
-
-                    elif event.key == pygame.K_p:
-                        game.toggle_pause()
-
-
-                # ==================================================
-                # 3. UNIVERSAL HIT CHECK (WORKS FOR BOTH INPUTS)
-                # ==================================================
-                if strum_triggered and current_fret:
-                    result = game.handle_input(current_fret)
-                    strum_triggered = False  # reset after hit
-
-                    if result:
-                        hit_feedback = result
-                        feedback_timer = 0.5
-                        feedback_y_offset = 0
-
-
-
-
-
-            # Game over screen
-            elif game_state == STATE_GAME_OVER and event.key == pygame.K_RETURN:
-                pygame.mixer.music.stop()
-                game.restart()
-                hit_feedback = ""
-                feedback_timer = 0
-                feedback_y_offset = 0
-                game_state = STATE_PLAYING
-                pygame.mixer.music.play()
-                
-
-    # --- Update game ---
+    # --- Update game logic ---
     if game_state == STATE_PLAYING:
         game.update()
-    # end when real song time hits 4:02
-    if game_state == STATE_PLAYING and song_start_time is not None:
+
+    # --- End song after 4:02 ---
+    if game_state == STATE_PLAYING and song_start_time:
         if time.time() - song_start_time >= SONG_LENGTH:
             pygame.mixer.music.stop()
             game_state = STATE_GAME_OVER
 
-
-        # End the song if all notes are hit
-       # if all(note.hit for note in game.notes):
-       #     game_state = STATE_GAME_OVER
-        #    pygame.mixer.music.stop()
-
-    # --- Draw ---
+    # --- Draw everything ---
     screen.fill((20, 20, 20))
+
     if game_state == STATE_START:
         draw_start_screen()
     elif game_state == STATE_PLAYING:
         draw_hit_zone()
         game.draw(screen)
         draw_feedback()
-        # Scoreboard
+
         score_text = font.render(f"Score: {game.score}", True, WHITE)
         combo_text = font.render(f"Combo: {game.combo}", True, WHITE)
         screen.blit(score_text, (10, 10))
         screen.blit(combo_text, (10, 50))
+
     elif game_state == STATE_GAME_OVER:
         draw_end_screen()
 
