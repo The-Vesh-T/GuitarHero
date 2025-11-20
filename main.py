@@ -751,11 +751,15 @@ while running:
     # ==================================================
     # UPDATE CURRENT_FRET BASED ON HELD FRETS
     # ==================================================
-    current_fret = None
-    for f in ["d", "f", "j", "k", "l"]:
-        if fret_down[f]:
-            current_fret = f
-            break
+
+#THIS UPDATES LASTLY
+    # Only override current_fret if a fret is being held on Arduino
+    held = [f for f in fret_down if fret_down[f]]
+
+    if held:
+        current_fret = held[0]   # pick the first held fret
+    # else: do NOT reset current_fret — preserve keyboard input
+
 
     
 
