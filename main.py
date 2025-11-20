@@ -475,6 +475,25 @@ while running:
                     # Beat recorder toggle
                     elif event.key == pygame.K_b:
                         beat_recording = not beat_recording
+                    # --- SEEK FORWARD 5 SEC ---
+                    elif event.key == pygame.K_RIGHT:
+                        song_start_time -= 5
+                        pygame.mixer.music.play(start=max(0, time.time() - song_start_time))
+                        print("⏩ Skipped +5 seconds")
+
+                    # --- SEEK BACKWARD 5 SEC ---
+                    elif event.key == pygame.K_LEFT:
+                        song_start_time += 5
+                        pygame.mixer.music.play(start=max(0, time.time() - song_start_time))
+                        print("⏪ Went back -5 seconds")
+
+                    # --- BIG SKIP 20 SEC (SHIFT + RIGHT) ---
+                    elif event.key == pygame.K_RIGHT and (pygame.key.get_mods() & pygame.KMOD_SHIFT):
+                        song_start_time -= 20
+                        pygame.mixer.music.play(start=max(0, time.time() - song_start_time))
+                        print("⏩⏩ Skipped +20 seconds")
+
+
 
                     # Beat tap
                     # --- 3. Beat Recording ---
@@ -524,6 +543,7 @@ while running:
                 feedback_y_offset = 0
                 game_state = STATE_PLAYING
                 pygame.mixer.music.play()
+                
 
     # --- Update game ---
     if game_state == STATE_PLAYING:
