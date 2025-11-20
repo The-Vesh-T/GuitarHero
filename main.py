@@ -349,8 +349,42 @@ note_chart = [
     {"time": 137.125, "key": "B"},
     {"time": 137.527, "key": "G"},
     {"time": 138.216, "key": "R"},
-    {"time": 140.394, "key": "P"}
+    {"time": 140.394, "key": "P"},
 
+    {"time": 145.152, "key": "B"},
+    {"time": 145.152, "key": "P"},
+    {"time": 145.595, "key": "Y"},
+    {"time": 146.177, "key": "B"},
+    {"time": 146.177, "key": "P"},
+    {"time": 146.731, "key": "Y"},
+    {"time": 147.255, "key": "B"},
+    {"time": 147.255, "key": "P"},
+    {"time": 147.823, "key": "Y"},
+    {"time": 148.439, "key": "B"},
+    {"time": 148.439, "key": "P"},
+    {"time": 148.936, "key": "Y"},
+    {"time": 149.490, "key": "B"},
+    {"time": 149.490, "key": "P"},
+    {"time": 150.074, "key": "Y"},
+    {"time": 151.718, "key": "B"},
+    {"time": 151.718, "key": "P"},
+    {"time": 152.747, "key": "G"},
+    {"time": 153.794, "key": "B"},
+    {"time": 153.794, "key": "P"},
+    {"time": 154.996, "key": "G"},
+
+    {"time": 156.100, "key": "G"},
+    {"time": 157.776, "key": "G"},
+    {"time": 159.482, "key": "G"},
+    {"time": 160.556, "key": "G"},
+    {"time": 161.616, "key": "G"},
+    {"time": 162.665, "key": "G"},
+    {"time": 163.793, "key": "G"},
+    {"time": 164.858, "key": "G"},
+    {"time": 165.960, "key": "G"},
+
+
+    {"time": 167.174, "key": "P"}, # Eye of the tiger
 ]
 
 game.load_notes(note_chart)
