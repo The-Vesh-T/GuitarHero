@@ -690,7 +690,9 @@ running = True
 while running:
     delta_time = clock.tick(FPS) / 1.0
 
-    # --- Event handling ---
+    # ============================
+    # 0. PYGAME EVENTS
+    # ============================
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
@@ -724,51 +726,46 @@ while running:
             elif event.key == pygame.K_p:
                 game.toggle_pause()
 
-    # ==================================================
-    # 1. ARDUINO INPUT (OUTSIDE EVENT LOOP — ALWAYS RUNS)
-    # ==================================================
+
+    # ============================
+    # 1. ARDUINO INPUT (NO EVENTS)
+    # ============================
     if arduino_input:
         print("RECEIVED:", arduino_input)
 
-        # ---------- FRET DOWN ----------
+        # FRET DOWN
         if arduino_input.endswith("_DOWN"):
-            fret = arduino_input[0]   # get 'd','f','j','k','l'
+            fret = arduino_input[0]
             if fret in fret_down:
                 fret_down[fret] = True
 
-        # ---------- FRET UP ----------
+        # FRET UP
         elif arduino_input.endswith("_UP"):
             fret = arduino_input[0]
             if fret in fret_down:
                 fret_down[fret] = False
 
-        # ---------- STRUM ----------
+        # STRUM
         elif arduino_input in ["STRUM_DOWN", "STRUM_UP"]:
             strum_triggered = True
 
-        arduino_input = None  # clear
-    
-    # ==================================================
-    # UPDATE CURRENT_FRET BASED ON HELD FRETS
-    # ==================================================
+        arduino_input = None
+        
 
-#THIS UPDATES LASTLY
-    # Only override current_fret if a fret is being held on Arduino
+    # ============================
+    # 2. UPDATE CURRENT_FRET
+    # ============================
     held = [f for f in fret_down if fret_down[f]]
-
     if held:
-        current_fret = held[0]   # pick the first held fret
-    # else: do NOT reset current_fret — preserve keyboard input
+        current_fret = held[0]
 
 
-    
-
-    # ==================================================
-    # 2. UNIVERSAL HIT CHECK (WORKS FOR BOTH INPUT TYPES)
-    # ==================================================
+    # ============================
+    # 3. HIT CHECK
+    # ============================
     if strum_triggered and current_fret:
-        result = game.handle_input(current_fret)
         print("ATTEMPT HIT:", current_fret)
+        result = game.handle_input(current_fret)
         strum_triggered = False
 
         if result:
@@ -776,17 +773,23 @@ while running:
             feedback_timer = 0.5
             feedback_y_offset = 0
 
-    # --- Update game logic ---
+
+    # ============================
+    # 4. UPDATE GAME LOGIC
+    # ============================
     if game_state == STATE_PLAYING:
         game.update()
 
-    # --- End song after 4:02 ---
+    # end song timer
     if game_state == STATE_PLAYING and song_start_time:
         if time.time() - song_start_time >= SONG_LENGTH:
             pygame.mixer.music.stop()
             game_state = STATE_GAME_OVER
 
-    # --- Draw everything ---
+
+    # ============================
+    # 5. DRAW
+    # ============================
     screen.fill((20, 20, 20))
 
     if game_state == STATE_START:
